@@ -1,12 +1,12 @@
 # homeassistant.koplugin
 
+## [Installation Instructions & Documentation]()
+
 <p align="center">
   <img src="assets/homeassistant_koreader.gif" alt="homeassistant.koplugin Demo GIF" width="500">
 </p>
 
-## [Installation Instructions & Documentation]()
-
-Features:
+### Features:
 - Control an unlimited number of Home Assistant entities from KOReader.
 - Lightweight, non-intrusive interface while reading your book.
 - Support for basic actions like `light.turn_on`, `switch.toggle` or `fan.turn_on`
