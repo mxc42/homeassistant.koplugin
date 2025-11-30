@@ -62,14 +62,14 @@ function HomeAssistant:onActivateHAEvent(entity)
         UIManager:show(InfoMessage:new {
             text = string.format(_("Success!\n%s\nservice: %s"),
                 entity.id, entity.service),
-            timeout = 5,
+            timeout = 3,
         })
     else
         UIManager:show(InfoMessage:new {
             -- Failure
             text = string.format(_("Failure!\nEntity: %s\nService: %s\nResponse Code: %s"),
                 entity.id, entity.service, tostring(code)),
-            timeout = 8,
+            timeout = 6,
         })
     end
 end
