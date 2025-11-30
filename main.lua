@@ -23,10 +23,29 @@ function HomeAssistant:init()
     self.ui.menu:registerToMainMenu(self)
 end
 
+-- Helper function to get display menu text for an entity
+function HomeAssistant:getEntityDisplayText(entity)
+    if entity.label ~= nil and entity.label ~= "" then
+        return entity.label
+    else
+        return string.format("%s → (%s)", entity.id, entity.service)
+    end
+end
+
+-- Register a unique action for each HA entity (e.g. for gestures)
 function HomeAssistant:onDispatcherRegisterActions()
-    Dispatcher:registerAction("activate_ha_event", {
-        event = "ActivateHAEvent",
-    })
+    for i, entity in ipairs(ha_config.entities) do
+        -- Create a unique action ID for each entity
+        local action_id = string.format("ha_entity_%d", i)
+
+        Dispatcher:registerAction(action_id, {
+            category = "none",
+            event = "ActivateHAEvent",
+            arg = entity,
+            title = self:getEntityDisplayText(entity),
+            general = true,
+        })
+    end
 end
 
 --- Add Tools menu entry with HA entities in submenu
@@ -36,9 +55,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     for _, entity in ipairs(ha_config.entities) do
         table.insert(sub_items, {
             -- Use custom label if provided, otherwise show "entity.id → (service)"
-            text = ((entity.label ~= nil and entity.label ~= "") and entity.label)
-                or (string.format("%s → (%s)", entity.id, entity.service)),
-
+            text = self:getEntityDisplayText(entity),
             callback = function()
                 self:onActivateHAEvent(entity)
             end,
