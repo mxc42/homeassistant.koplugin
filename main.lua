@@ -29,6 +29,15 @@ function HomeAssistant:onDispatcherRegisterActions()
     })
 end
 
+-- Helper function to get display menu text for an entity
+function HomeAssistant:getEntityDisplayText(entity)
+    if entity.label ~= nil and entity.label ~= "" then
+        return entity.label
+    else        
+        return string.format("%s → (%s)", entity.id, entity.service)
+    end
+end
+
 --- Add Tools menu entry with HA entities in submenu
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
@@ -36,9 +45,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     for _, entity in ipairs(ha_config.entities) do
         table.insert(sub_items, {
             -- Use custom label if provided, otherwise show "entity.id → (service)"
-            text = ((entity.label ~= nil and entity.label ~= "") and entity.label)
-                or (string.format("%s → (%s)", entity.id, entity.service)),
-
+            text = self:getEntityDisplayText(entity),
             callback = function()
                 self:onActivateHAEvent(entity)
             end,
