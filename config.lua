@@ -16,12 +16,17 @@ return {
         {
             id = "light.all_lights",
             service = "light/turn_on",
-            label = "Turn on ALL lights",
+            label = "☀ Turn on ALL lights",
         },
         {
             id = "switch.coffee_machine",
             service = "switch/turn_on",
-            label = "Coffee Time",
+            label = "♨ Coffee Time",
+        },
+        {
+            id = "media_player.example",
+            service = "media_player/media_play_pause",
+            label = "⏯ Play/Pause Music",
         },
         {
             id = "fan.ceiling_fan",
