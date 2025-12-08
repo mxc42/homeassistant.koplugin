@@ -8,7 +8,7 @@ This [KOReader](https://koreader.rocks/) plugin lets you control Home Assistant 
 
 <p align="center">
 <img src="assets/homeassistant_koplugin_screenshots.png"  alt="homeassistant.koplugin screenshots" />
-  <i>homeassistant.koplugin: called from Tools menu & as a QuickMenu</i>
+  <i>homeassistant.koplugin: called from Tools menu [left] & as a QuickMenu [right]</i>
 </p>
 
 ## Features
@@ -96,7 +96,7 @@ _Be aware of proper indentations, `{}` and `,` otherwise you will get syntax err
 <details>
 <summary>Screenshot: Empty Label</summary>
 <p align="left">
-<img src="assets/empty_label.png"  alt="homeassistant.koplugin screenshots" width=400/>
+<img src="assets/empty_label.png"  alt="homeassistant.koplugin screenshots" style="width:70%; height:auto;"/>
 </p>
 </details>
 
