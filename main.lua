@@ -105,7 +105,15 @@ function HomeAssistant:prepareRequest(entity, method)
         url = string.format("http://%s:%d/api/services/%s/%s",
             ha_config.host, ha_config.port, domain, entity.service)
 
-        request_body = json.encode({ entity_id = entity.id })
+        local build_request_body = { entity_id = entity.id }
+
+        if entity.data then
+            for k, v in pairs(entity.data) do
+                build_request_body[k] = v
+            end
+        end
+
+        request_body = json.encode(build_request_body)
     else
         -- Query entity state
         url = string.format("http://%s:%d/api/states/%s",
