@@ -119,7 +119,7 @@ function HomeAssistant:prepareRequest(entity, method)
     else
         -- Query entity state
         url = string.format("http://%s:%d/api/states/%s",
-            ha_config.host, ha_config.port, entity.id)
+            ha_config.host, ha_config.port, entity.target)
 
         request_body = nil
     end
@@ -188,7 +188,7 @@ function HomeAssistant:buildMessage(entity, code, response, method)
                 "%s\n" ..
                 "Domain: %s\n" ..
                 "❯ State: %s\n"),
-            entity.label, self:getDomain(entity), state.state or "unknown"
+            entity.label, self:getDomainandAction(entity), state.state or "unknown"
         ), nil
     end
 end
