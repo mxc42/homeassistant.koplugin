@@ -65,9 +65,13 @@ end
 
 --- Extract domain & action from or entity.acion
 function HomeAssistant:getDomainandAction(entity)
+    local domain, action
     if entity.action then
-        local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+        domain, action = entity.action:match("^([^.]+)%.(.+)$")
         return domain, action
+    else
+        domain = entity.target:match("^([^.]+)")
+        return domain
     end
 end
 
