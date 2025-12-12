@@ -85,12 +85,39 @@ end
 -- end
 
 --- Handle ActivateHAEvent
--- Flow: "POST"|"GET" -> prepareRequest -> performRequest -> display result message to user
+-- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local method = entity.action and "POST" or "GET"
+    local url, request_body, method
 
-    -- Prepare (and perform) the request
-    local code, response = self:prepareRequest(entity, method)
+    if entity.action then
+        -- POST: Call a service (e.g., light.turn_on, switch.toggle)
+        method = "POST"
+        local domain, action = self:getDomainandAction(entity)
+
+        url = string.format("http://%s:%d/api/services/%s/%s",
+            ha_config.host, ha_config.port, domain, action)
+
+        local build_request_body = { entity_id = entity.target }
+
+        -- Add additional Home Assistant data attributes to the service call
+        if entity.data then
+            for k, v in pairs(entity.data) do
+                build_request_body[k] = v
+            end
+        end
+
+        request_body = json.encode(build_request_body)
+    else
+        -- GET: Query entity state
+        method = "GET"
+        url = string.format("http://%s:%d/api/states/%s",
+            ha_config.host, ha_config.port, entity.target)
+
+        request_body = nil
+    end
+
+    -- Perform the request
+    local code, response = self:performRequest(url, method, request_body)
 
     -- Build message text based on result
     local messageText, timeout = self:buildMessage(entity, code, response, method)
@@ -101,41 +128,6 @@ function HomeAssistant:onActivateHAEvent(entity)
         timeout = timeout,
         icon = "homeassistant",
     })
-end
-
---- Prepare HTTP request for Home Assistant API
--- POST requests call services (e.g., turn_on, turn_off)
--- GET requests retrieve entity state
-function HomeAssistant:prepareRequest(entity, method)
-    local url, request_body
-
-    if method == "POST" then
-        -- Call a action (e.g., light.turn_on, switch.toggle)
-        local domain, action = self:getDomainandAction(entity)
-
-        url = string.format("http://%s:%d/api/services/%s/%s",
-            ha_config.host, ha_config.port, domain, action)
-
-        local build_request_body = { entity_id = entity.target }
-
-        -- Add addtional Home Assistant data attributes to the service call
-        if entity.data then
-            for k, v in pairs(entity.data) do
-                build_request_body[k] = v
-            end
-        end
-
-        request_body = json.encode(build_request_body)
-    else
-        -- Query entity state
-        url = string.format("http://%s:%d/api/states/%s",
-            ha_config.host, ha_config.port, entity.target)
-
-        request_body = nil
-    end
-
-    -- Perform the request and return code, response
-    return self:performRequest(url, method, request_body)
 end
 
 --- Send a REST API request to the Home Assistant API
