@@ -103,8 +103,7 @@ function HomeAssistant:prepareRequest(entity, method)
         url = string.format("http://%s:%d/api/services/%s/%s",
             ha_config.host, ha_config.port, domain, action)
 
-        local entity_id = entity.target or entity.id -- TODO: temporay, until everything is refactored
-        local build_request_body = { entity_id = entity_id }
+        local build_request_body = { entity_id = entity.target }
 
         if entity.data then
             for k, v in pairs(entity.data) do
