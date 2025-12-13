@@ -158,11 +158,11 @@ end
 --- Build user-facing message based on API response
 function HomeAssistant:buildMessage(entity, code, response, method)
     local messageText, timeout
-    
+
     -- on Error:
     if code ~= 200 and code ~= 201 then
         messageText, timeout = self:buildErrorMessage(entity, code)
-    -- on Success:
+        -- on Success:
     elseif method == "POST" then
         -- "POST":
         messageText, timeout = self:buildSuccessPostMessage(entity)
@@ -170,7 +170,7 @@ function HomeAssistant:buildMessage(entity, code, response, method)
         -- "GET":
         messageText, timeout = self:buildSuccessGetMessage(entity, response)
     end
-    
+
     -- Show message box
     UIManager:show(InfoMessage:new {
         text = messageText,
@@ -182,7 +182,7 @@ end
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, code)
     return string.format(_(
-            "- - Error - -\n" ..
+            "𝙀𝙧𝙧𝙤𝙧\n" ..
             "label: %s\n" ..
             "domain: %s\n" ..
             "action: %s\n" ..
@@ -194,40 +194,37 @@ end
 --- Build success message for POST requests
 function HomeAssistant:buildSuccessPostMessage(entity)
     return string.format(_(
-            "- - Success - -\n" ..
-            "❯ %s\n" ..
-            "Domain: %s\n" ..
-            "Action: %s"),
+            "𝘗𝘖𝘚𝘛 𝘙𝘦𝘲𝘶𝘦𝘴𝘵\n" ..
+            "⏵ %s\n\n" ..
+            "domain: %s\n" ..
+            "action: %s"),
         entity.label, self:getDomainandAction(entity), entity.action
     ), 5
 end
 
 --- Build success message for GET requests
 function HomeAssistant:buildSuccessGetMessage(entity, response)
-    local state = json.decode(response)
-    
     -- Build the base message
     local message = string.format(_(
-            "- - Info - -\n" ..
-            "%s\n" ..
-            "domain: %s\n" ..
-            "state: %s\n"),
-        entity.label, self:getDomainandAction(entity), state.state or "unknown"
+            "𝘎𝘌𝘛 𝘙𝘦𝘲𝘶𝘦𝘴𝘵\n" ..
+            "⏵ %s\n\n"),
+        entity.label
     )
-    
-    -- Extend the base message with attributes
-    message = message .. self:buildAttributeMessage(state, entity)
-    
+
+    -- Pass the raw response string to the attribute builder
+    message = message .. self:buildAttributeMessage(response, entity)
+
     return message, nil
 end
 
 --- Build attribute message string from decoded state and entity config
-function HomeAssistant:buildAttributeMessage(state, entity)
+function HomeAssistant:buildAttributeMessage(response, entity)
+    local state = json.decode(response)
     local attribute_message = ""
-    
+
     -- Check if entity.attributes are defined in config
     if entity.attributes then
-        -- Make sure attributes is always a list
+        -- Make sure attribute_list is always a list
         local attribute_list = entity.attributes
         if type(attribute_list) == "string" then
             attribute_list = { attribute_list } -- Convert single string to list
@@ -240,7 +237,7 @@ function HomeAssistant:buildAttributeMessage(state, entity)
             -- this allows us to access e.g. state.last_changed or state.last_updated
             if state[attribute_name] then
                 attribute_value = state[attribute_name]
-            -- Otherwise check in state.attributes
+                -- Otherwise check in state.attributes
             elseif state.attributes then
                 attribute_value = state.attributes[attribute_name]
             else
@@ -248,18 +245,18 @@ function HomeAssistant:buildAttributeMessage(state, entity)
             end
 
             -- Handle different types of attribute values
-            local value_str
+            local value_string
             if attribute_value == nil then
                 -- Handle attribute that don't exist in response
-                value_str = "null"
+                value_string = "null"
             elseif type(attribute_value) == "boolean" then
                 -- Handle booleans
-                value_str = attribute_value and "true" or "false"
+                value_string = attribute_value and "true" or "false"
             elseif type(attribute_value) == "function" then
-                -- Handle malformed responses or JSON decode errors (e.g. state.attributes.color_mode when light is turned off)
-                value_str = "null"
+                -- Handle malformed responses or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
+                value_string = "null"
             elseif type(attribute_value) == "table" then
-                -- Handle simple arrays or nested structures
+                -- Handle simple arrays or complex nested structures
                 local is_simple = true
                 for _, v in ipairs(attribute_value) do
                     if type(v) == "table" then
@@ -274,21 +271,23 @@ function HomeAssistant:buildAttributeMessage(state, entity)
                     for _, v in ipairs(attribute_value) do
                         table.insert(parts, tostring(v))
                     end
-                    value_str = table.concat(parts, ", ")
+                    value_string = table.concat(parts, ", ")
                 else
                     -- Complex nested structure
-                    value_str = string.format("[%d items]", #attribute_value)
+                    value_string = string.format("[%d items]", #attribute_value)
                 end
             else
                 -- Handle strings, numbers, and any other types
-                value_str = tostring(attribute_value)
+                value_string = tostring(attribute_value)
             end
-            attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_str)
+            attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_string)
         end
+    else
+        -- No attributes configured, append the placeholder line
+        attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
     end
 
     return attribute_message
 end
 
 return HomeAssistant
-
