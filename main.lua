@@ -121,6 +121,26 @@ function HomeAssistant:onActivateHAEvent(entity)
     -- Perform the request
     local code, response = self:performRequest(url, method, request_body)
 
+    -- local response = [[{
+    -- "state": "sunny",
+    -- "attributes": {
+    --     "forecast": [
+    --     {
+    --         "datetime": "2025-12-13",
+    --         "temperature": 22,
+    --         "condition": "sunny",
+    --         "precipitation": 0
+    --     },
+    --     {
+    --         "datetime": "2025-12-14",
+    --         "temperature": 18,
+    --         "condition": "rainy",
+    --         "precipitation": 5.2
+    --     }
+    --     ]
+    -- }
+    -- }]]
+
     -- Build message text based on result
     local messageText, timeout = self:buildMessage(entity, code, response, method)
 
@@ -275,3 +295,15 @@ function HomeAssistant:buildAttributeMessage(state, entity)
 end
 
 return HomeAssistant
+
+-- TODO:
+
+-- elseif type(attribute_value) == "table" then
+--     value_str = json.encode(attribute_value, { pretty = true })
+
+-- elseif type(attribute_value) == "table" then
+--     local parts = {}
+--     for _, v in ipairs(attribute_value) do
+--         table.insert(parts, tostring(v))
+--     end
+--     value_str = table.concat(parts, ", ")
