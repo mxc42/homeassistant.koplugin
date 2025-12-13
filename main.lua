@@ -63,7 +63,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Extract domain & action from or entity.acion
+--- Extract domain & action from entity.target or entity.action
 function HomeAssistant:getDomainandAction(entity)
     local domain, action
     if entity.action then
