@@ -13,11 +13,11 @@
 
 - Control any number of Home Assistant entities from KOReader 
 - Action support with custom data attributes e.g.:  
-  - `light.turn_on` with "brightness" and "color" 
-  - `media_player.play_media` with "media_content_id" & "type"
+  - **light.turn_on** with `brightness` and `color` 
+  - **media_player.play_media** with `media_content_id` & `type`
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
-  - `sensor.temperature_outside`: "state", "unit_of_measurement"
+  - **sensor.temperature_outside**: `state`, `unit_of_measurement`
 - Lightweight, unobtrusive interface  
 - Simple text-based configuration  
 - Success/error notifications
@@ -99,7 +99,7 @@ The entry in `config.lua` would look like this:
 
 ### Adding Data to Actions
 
-You can add additional data to your action. In this example we add the data attributes "brightness" and "rgb_color" to [action light.turn_on](https://www.home-assistant.io/integrations/light/#action-lightturn_on) through `data`:
+You can add additional data to your action. In this example we add the data attributes `brightness` and `rgb_color` to [action **light.turn_on**](https://www.home-assistant.io/integrations/light/#action-lightturn_on) through `data`:
 
 ```lua
 {
