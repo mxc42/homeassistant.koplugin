@@ -127,7 +127,7 @@ To discover what additional data you can send with an action:
 > [!TIP]
 > Take a look at the [example section](#examples) to see what's possible with `homeassistant.koplugin`.
 
-### Targeting Entities, Areas, or Labels
+### Targeting Entities, Areas or Labels
 
 You may target multiple entities, areas, or labels – but do not mix them.
 
