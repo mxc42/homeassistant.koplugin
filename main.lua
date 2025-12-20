@@ -14,6 +14,15 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 local json = require("json")
 
+--- Icon glyph definitions
+-- Reference font: koreader/fonts/nerdfonts/symbols.ttf
+local Icons = {
+    ha = "\u{EECE}",
+    -- download_network = "\u{EDF2}",
+    -- help_network = "\u{EDF3}",
+    -- upload_network = "\u{EDF4}",
+}
+
 local HomeAssistant = WidgetContainer:extend {
     name = "homeassistant",
     is_doc_only = false,
@@ -57,7 +66,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     end
 
     menu_items.homeassistant = {
-        text = _("Home Assistant"),
+        text = _(Icons.ha .. " Home Assistant"),
         sorting_hint = "tools",
         sub_item_table = sub_items,
     }
