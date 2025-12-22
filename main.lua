@@ -12,7 +12,19 @@ local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
+local DataStorage = require("datastorage")
+local lfs = require("libs/libkoreader-lfs")
 local json = require("json")
+
+--- InfoMessage Icon Check
+--- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
+local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
+local file_mode = lfs.attributes(icon_path, "mode")
+local icon_value = nil
+
+if file_mode == "file" then
+    icon_value = "homeassistant"
+end
 
 --- Font Glyph definitions
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
@@ -208,7 +220,7 @@ function HomeAssistant:buildMessage(entity, code, response, method)
     UIManager:show(InfoMessage:new {
         text = messageText,
         timeout = timeout,
-        icon = "homeassistant",
+        icon = icon_value,
     })
 end
 
