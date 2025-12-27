@@ -250,69 +250,62 @@ end
 --- Build success message for state / GET requests
 function HomeAssistant:buildStateMessage(entity, response)
     -- Build the base message
-    local message = string.format(_(
+    local base_message = string.format(_(
             "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
             "%s\n\n"),
         entity.label
     )
 
-    -- 1. Decode the response body
-    local state = json.decode(response)
-    local attribute_message = ""
-
-    -- 2. Check if attributes are configured in the entity
+    -- If no attributes are configured in config.lua, show helper text
     if not entity.attributes then
-        -- No attributes configured, append the placeholder line
-        attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
-    else
-        -- 3. Prepare the attribute list (ensure it's always a table)
-        local attribute_list = entity.attributes
-        if type(attribute_list) == "string" then
-            attribute_list = { attribute_list } -- Convert single string to list
-        end
-
-        -- 4. Iterate and extract each configured attribute value
-        for _, attribute_name in ipairs(attribute_list) do
-            local attribute_value
-
-            -- Try to access attribute:
-            -- a) Check top-level state property (e.g., 'state', 'last_changed')
-            if state[attribute_name] then
-                attribute_value = state[attribute_name]
-                -- b) Check state.attributes table
-            elseif state.attributes then
-                attribute_value = state.attributes[attribute_name]
-            else
-                -- c) Attribute not found
-                attribute_value = nil
-            end
-
-            -- 5. Handle different types of attribute values for formatting
-            local value_string
-            if attribute_value == nil or type(attribute_value) == "function" then
-                -- Handle non-existent or malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
-                value_string = "null"
-            elseif type(attribute_value) == "table" then
-                -- Handle simple arrays (e.g., [255, 204, 0])
-                local parts = {}
-                for _, v in ipairs(attribute_value) do
-                    table.insert(parts, tostring(v))
-                end
-                value_string = table.concat(parts, ", ")
-            else
-                -- Handle strings, numbers, and any other types
-                value_string = tostring(attribute_value)
-            end
-
-            -- 6. Append the formatted attribute line
-            attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_string)
-        end
+        return base_message .. "Add attributes to this entity in `config.lua`.\n", nil
     end
 
-    -- Append the built attribute message to the main message
-    message = message .. attribute_message
+    -- Parse the response
+    local state = json.decode(response)
 
-    return message, nil
+    -- Ensure attributes is a table (convert single string if needed)
+    local attributes = entity.attributes
+    if type(attributes) == "string" then
+        attributes = { attributes }
+    end
+
+    -- Iterate and extract each configured attribute value
+    local attribute_message = ""
+    for _, attribute_name in ipairs(attributes) do
+        -- Access attribute: state property (e.g., 'state', 'last_changed') or state attribute
+        local attribute_value = state[attribute_name]
+            or (state.attributes and state.attributes[attribute_name])
+
+        -- Handle attribute value formatting
+        local value = self:formatAttributeValue(attribute_value)
+        attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value)
+    end
+
+    local full_message = base_message .. attribute_message
+    return full_message, nil
 end
+
+-- Helper function to format any state attribute value into a string
+function HomeAssistant:formatAttributeValue(value)
+    local value_type = type(value)
+
+    if value == nil or value_type == "function" then
+        -- Handle non-existent, malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
+        return "null"
+    elseif type(value) == "table" then
+        -- Handle simple arrays/tables (e.g., [255, 204, 0])
+        local parts = {}
+        for _, v in ipairs(value) do
+            table.insert(parts, tostring(v))
+        end
+        return table.concat(parts, ", ")
+    else
+        -- Handle strings, numbers, booleans, etc.
+        return tostring(value)
+    end
+end
+
+
 
 return HomeAssistant
