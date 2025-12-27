@@ -265,7 +265,7 @@ function HomeAssistant:buildStateMessage(entity, api_response)
         return base_message .. "Add attributes to this entity in `config.lua`.\n", nil
     end
 
-    -- Parse the response
+    -- Parse response
     local state = json.decode(api_response)
 
     -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
@@ -312,7 +312,7 @@ function HomeAssistant:formatAttributeValue(value)
     end
 end
 
---- Build message for responses with response_data
+--- Build success message for actions with response_data
 function HomeAssistant:buildResponseDataMessage(entity, api_response)
     -- Build the base message
     local base_message = string.format(_(
@@ -328,7 +328,7 @@ function HomeAssistant:buildResponseDataMessage(entity, api_response)
         full_message = base_message .. self:formatTodoItems(api_response)
     else
         -- TODO: Add response data support for other entity types
-        -- Fallback for unknown action types
+        -- Fallback message
         full_message = base_message .. "Only 'todo.get_items' is supported for now.\n"
     end
 
