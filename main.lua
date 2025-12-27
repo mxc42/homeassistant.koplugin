@@ -344,18 +344,20 @@ function HomeAssistant:formatTodoItems(api_response)
                 return "Todo list is empty\n"
             end
 
-            -- Convert each todo item into "[x] Item" or "[ ] Item"
+            -- PASS 1: Add only the active (non-completed) items first
             for _, item in ipairs(items) do
-                local is_completed = (item.status == "completed")
-                local checkbox = is_completed and tostring(Glyphs.checkbox_marked) or tostring(Glyphs.checkbox_blank)
+                if item.status == "needs_action" then
+                    todo_message = todo_message ..
+                    string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
+                end
+            end
 
-                -- Draft: also show todo item description
-                -- local description = ""
-                -- if item.description then
-                --     description = item.description .. "\n"
-                -- end
-
-                todo_message = todo_message .. string.format("%s %s\n", checkbox, tostring(item.summary))
+            -- PASS 2: Add only the completed items at the bottom
+            for _, item in ipairs(items) do
+                if item.status == "completed" then
+                    todo_message = todo_message ..
+                    string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
+                end
             end
 
             -- Stop after the first entity's items are processed
