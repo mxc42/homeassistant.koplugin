@@ -30,6 +30,8 @@ end
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     ha = "\u{EECE}",
+    checkbox_blank = "\u{E830}",
+    checkbox_marked = "\u{E834}",
     -- download_network = "\u{EDF2}",
     -- help_network = "\u{EDF3}",
     -- upload_network = "\u{EDF4}",
@@ -359,10 +361,10 @@ function HomeAssistant:formatTodoItems(api_response)
                 return "Todo list is empty\n"
             end
 
-            -- Convert each todo item into "Summary: [x]" or "Summary: [ ]" format
+            -- Convert each todo item into "[x] Item" or "[ ] Item" format
             for _, item in ipairs(items) do
                 local is_completed = (item.status == "completed")
-                local checkbox = is_completed and "[x]" or "[ ]"
+                local checkbox = is_completed and tostring(Glyphs.checkbox_marked) or tostring(Glyphs.checkbox_blank)
 
                 todo_message = todo_message .. string.format("%s %s\n", checkbox, tostring(item.summary))
             end
