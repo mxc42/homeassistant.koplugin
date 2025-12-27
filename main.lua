@@ -273,22 +273,24 @@ function HomeAssistant:buildStateMessage(entity, api_response)
     -- Parse the response
     local state = json.decode(api_response)
 
-    -- Ensure attributes is a table (convert single string if needed)
+    -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
     local attributes = entity.attributes
     if type(attributes) == "string" then
         attributes = { attributes }
     end
 
-    -- Iterate and extract each configured attribute value
     local attribute_message = ""
-    for _, attribute_name in ipairs(attributes) do
-        -- Access attribute: state property (e.g., 'state', 'last_changed') or state attribute
-        local attribute_value = state[attribute_name]
-            or (state.attributes and state.attributes[attribute_name])
+
+    -- Iterate through user-configured attribute names from config.lua and match against API response
+    for _, name in ipairs(attributes) do
+        -- First check state[attribute_name] (e.g., state.state, state.last_changed)
+        -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
+        local attribute_value = state[name]
+            or (state.attributes and state.attributes[name])
 
         -- Handle attribute value formatting
         local value = self:formatAttributeValue(attribute_value)
-        attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value)
+        attribute_message = attribute_message .. string.format("%s: %s\n", name, value)
     end
 
     local full_message = base_message .. attribute_message
