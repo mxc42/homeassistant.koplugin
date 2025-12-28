@@ -314,8 +314,8 @@ function HomeAssistant:buildResponseDataMessage(entity, api_response)
     local full_message = ""
 
     -- Handle different kind of actions which use "?return_response"
-    if entity.action == "todo.get_items" then
-        full_message = base_message .. self:formatTodoItems(api_response)
+    if entity.action == "todo.get_items" and type(entity.target) == "string" then
+        full_message = base_message .. self:formatTodoItems(entity, api_response)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
@@ -326,45 +326,38 @@ function HomeAssistant:buildResponseDataMessage(entity, api_response)
 end
 
 --- Format todo list items
-function HomeAssistant:formatTodoItems(api_response)
+function HomeAssistant:formatTodoItems(entity, api_response)
     -- Decode the response body
     local service_response = json.decode(api_response).service_response
     local todo_message = ""
 
-    -- service_response is a map where:
-    --   keys = entity IDs (e.g., "todo.shopping_list")
-    --   values = objects containing an "items" array
-    for _, entity in pairs(service_response) do
-        local items = entity.items
+    -- Extract the items array from service_response
+    local items = service_response[entity.target].items
 
-        -- Validate that items is a table
-        if type(items) == "table" then
-            -- Handle empty list
-            if #items == 0 then
-                return "Todo list is empty\n"
-            end
+    -- Validate that items is a table
+    if type(items) == "table" then
+        -- Handle empty list
+        if #items == 0 then
+            return "Todo list is empty\n"
+        end
 
-            -- PASS 1: Add only the active (non-completed) items first
-            for _, item in ipairs(items) do
-                if item.status == "needs_action" then
-                    todo_message = todo_message ..
+        -- PASS 1: Add only the active (non-completed) items first
+        for _, item in ipairs(items) do
+            if item.status == "needs_action" then
+                todo_message = todo_message ..
                     string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
-                end
             end
+        end
 
-            -- PASS 2: Add only the completed items at the bottom
-            for _, item in ipairs(items) do
-                if item.status == "completed" then
-                    todo_message = todo_message ..
+        -- PASS 2: Add only the completed items at the bottom
+        for _, item in ipairs(items) do
+            if item.status == "completed" then
+                todo_message = todo_message ..
                     string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
-                end
             end
-
-            -- Stop after the first entity's items are processed
-            break
         end
     end
-
+    
     return todo_message
 end
 
