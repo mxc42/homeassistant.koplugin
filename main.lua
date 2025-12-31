@@ -283,7 +283,7 @@ function HomeAssistant:formatAttributeValue(value)
     if value == nil or value_type == "function" then
         -- Handle non-existent, malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
         return "null"
-    elseif type(value_type == "table" then
+    elseif value_type == "table" then
         -- Handle simple arrays/tables (e.g., [255, 204, 0])
         local parts = {}
         for _, v in ipairs(value) do
