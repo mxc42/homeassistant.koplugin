@@ -26,7 +26,7 @@ if file_mode == "file" then
     icon_value = "homeassistant"
 end
 
---- Font Glyph definitions
+--- Font glyph definitions
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     ha = "\u{EECE}",
@@ -159,7 +159,7 @@ function HomeAssistant:onActivateHAEvent(entity)
     self:buildMessage(entity, code, api_response, method)
 end
 
---- Send a REST API request to the Home Assistant API
+--- Executes a REST request to Home Assistant
 function HomeAssistant:performRequest(url, method, request_body)
     local http = require("socket.http")
     local ltn12 = require("ltn12")
@@ -313,7 +313,7 @@ function HomeAssistant:buildResponseDataMessage(entity, api_response)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        full_message = base_message .. "Configuration error.\nCheck the documentation 'response data' section"
+        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section"
     end
 
     return full_message, nil
@@ -343,7 +343,7 @@ function HomeAssistant:formatTodoItems(api_response)
             for _, item in ipairs(items) do
                 if item.status == "needs_action" then
                     todo_message = todo_message ..
-                    string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
+                        string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
                 end
             end
 
@@ -351,7 +351,7 @@ function HomeAssistant:formatTodoItems(api_response)
             for _, item in ipairs(items) do
                 if item.status == "completed" then
                     todo_message = todo_message ..
-                    string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
+                        string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
                 end
             end
 
