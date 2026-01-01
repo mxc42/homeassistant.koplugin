@@ -255,7 +255,7 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         return base_message .. "Add attributes to this entity in `config.lua`.\n", nil
     end
 
-    -- TODO: Add a comment, as to why the variable is called "state"
+    -- Named "state", so that later processing matches Home Assistant state object naming
     local state = response_data
 
     -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
