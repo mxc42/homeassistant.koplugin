@@ -95,6 +95,37 @@ function HomeAssistant:getDomainandAction(entity)
     end
 end
 
+--- Helper to build the JSON body for the request
+function HomeAssistant:buildServiceData(entity)
+    local body = {}
+
+    -- Check if target is a List (Array)
+    -- #table > 0 as check for a list of items
+    local is_list = (type(entity.target) == "table" and #entity.target > 0)
+
+    -- Case 1: String or List -> Assign to 'entity_id'
+    -- e.g. "light.foo" or { "light.a", "light.b" }
+    if type(entity.target) == "string" or is_list then
+        body.entity_id = entity.target
+
+        -- Case 2: Map (Key-Value) -> Merge into body
+        -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
+    elseif type(entity.target) == "table" then
+        for k, v in pairs(entity.target) do
+            body[k] = v
+        end
+    end
+
+    -- Merge additional 'data' attributes if present
+    if entity.data then
+        for k, v in pairs(entity.data) do
+            body[k] = v
+        end
+    end
+
+    return body
+end
+
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
@@ -104,51 +135,16 @@ function HomeAssistant:onActivateHAEvent(entity)
         -- POST: Call a service (e.g., light.turn_on, switch.toggle)
         method = "POST"
         local domain, action = self:getDomainandAction(entity)
-
-        -- Add return_response query parameter if needed
-        local query_params = ""
-        if entity.response_data then
-            query_params = "?return_response=true"
-        end
-
+        local query_params = entity.response_data and "?return_response=true" or ""
         url = string.format("http://%s:%d/api/services/%s/%s%s",
             ha_config.host, ha_config.port, domain, action, query_params)
-
-        -- START: Build request_body
-        local build_request_body = {}
-
-        -- Check if target is a List (Array)
-        -- #table > 0 as check for a list of items
-        local is_list = (type(entity.target) == "table" and #entity.target > 0)
-
-        -- Case 1: String or List -> Assign to 'entity_id'
-        -- e.g. "light.foo" or { "light.a", "light.b" }
-        if type(entity.target) == "string" or is_list then
-            build_request_body.entity_id = entity.target
-
-            -- Case 2: Map (Key-Value) -> Merge into body
-            -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
-        elseif type(entity.target) == "table" then
-            for k, v in pairs(entity.target) do
-                build_request_body[k] = v
-            end
-        end
-
-        -- Add additional Home Assistant data attributes to the service call
-        if entity.data then
-            for k, v in pairs(entity.data) do
-                build_request_body[k] = v
-            end
-        end
-
-        request_body = rapidjson.encode(build_request_body)
-        -- END: Build request_body
+        local service_data = self:buildServiceData(entity)
+        request_body = rapidjson.encode(service_data)
     else
         -- GET: Query entity state
         method = "GET"
         url = string.format("http://%s:%d/api/states/%s",
             ha_config.host, ha_config.port, entity.target)
-
         request_body = nil
     end
 
