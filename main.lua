@@ -147,10 +147,10 @@ function HomeAssistant:onActivateHAEvent(entity)
     end
 
     -- Perform the request
-    local code, response_data = self:performRequest(url, method, service_data)
+    local error, response_data = self:performRequest(url, method, service_data)
 
     -- Build and show message
-    self:buildMessage(entity, code, response_data, method)
+    self:buildMessage(entity, method, error, response_data)
 end
 
 --- Executes a REST request to Home Assistant
@@ -171,7 +171,7 @@ function HomeAssistant:performRequest(url, method, service_data)
     local response_body = {}
 
     -- result, status code, headers, status line
-    local __, code, __, __ = http.request {
+    local result, code, __, __ = http.request {
         url = url,
         method = method,
         headers = headers,
@@ -179,25 +179,33 @@ function HomeAssistant:performRequest(url, method, service_data)
         sink = ltn12.sink.table(response_body)
     }
 
-    -- Decode json response, when actually needed
+    -- Error handling
+    if result == nil or (code ~= 200 and code ~= 201) then
+        return true, code
+    end
+
+    -- Decode json response when required
     local raw_response = table.concat(response_body)
     local response_data = nil
 
     if raw_response ~= "" then
-        local success, result = pcall(rapidjson.decode, raw_response)
-        response_data = success and result or nil
+        local success, decoded = pcall(rapidjson.decode, raw_response)
+        response_data = success and decoded or nil
+    else
+        -- Handle JSON Decode Error
+        return true, "JSON Decode Failed"
     end
 
-    return code, response_data
+    return false, response_data
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, code, response_data, method)
+function HomeAssistant:buildMessage(entity, method, error, response_data)
     local messageText, timeout
 
     -- on Error:
-    if code ~= 200 and code ~= 201 then
-        messageText, timeout = self:buildErrorMessage(entity, code)
+    if error == true then
+        messageText, timeout = self:buildErrorMessage(entity, response_data)
         -- on Success:
         -- with Response Data:
     elseif entity.response_data and method == "POST" then
@@ -219,7 +227,7 @@ function HomeAssistant:buildMessage(entity, code, response_data, method)
 end
 
 --- Build error message
-function HomeAssistant:buildErrorMessage(entity, code)
+function HomeAssistant:buildErrorMessage(entity, response_data)
     return string.format(_(
             "𝙀𝙧𝙧𝙤𝙧\n" ..
             "%s\n\n" ..
@@ -227,7 +235,7 @@ function HomeAssistant:buildErrorMessage(entity, code)
             "action: %s\n" ..
             "⏵ response:\n" ..
             "%s"),
-        entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
+        entity.label, self:getDomainandAction(entity), entity.action or "n/a", response_data
     ), nil
 end
 
