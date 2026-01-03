@@ -14,6 +14,8 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 local DataStorage = require("datastorage")
 local lfs = require("libs/libkoreader-lfs")
+local http = require("socket.http")
+local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
 
 --- InfoMessage Icon Check
@@ -155,9 +157,14 @@ end
 
 --- Executes a REST request to Home Assistant
 function HomeAssistant:performRequest(url, method, service_data)
-    local http = require("socket.http")
-    local ltn12 = require("ltn12")
     http.TIMEOUT = 6
+
+    local error_codes = {
+        [400] = "400: Bad Request\nCheck the entity configuration in 'config.lua'.",
+        [401] = "401: Unauthorized\nCheck your Long-Lived Access Token in 'config.lua'.",
+        [404] = "404: Not Found\nInvalid target, check the entity configuration in 'config.lua'.",
+        [405] = "405: Method Not Allowed"
+    }
 
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
@@ -180,7 +187,9 @@ function HomeAssistant:performRequest(url, method, service_data)
     }
 
     -- Error handling
-    if result == nil or (code ~= 200 and code ~= 201) then
+    if error_codes[code] then
+        return true, error_codes[code]
+    elseif result == nil or (code ~= 200 and code ~= 201) then
         return true, code
     end
 
