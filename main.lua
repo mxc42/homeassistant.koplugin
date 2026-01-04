@@ -267,21 +267,20 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         entity.label
     )
 
-    -- If no attributes are configured in config.lua, show helper text
-    if not entity.attributes then
-        return base_message .. "Add attributes to this entity in `config.lua`.\n", nil
-    end
-
     -- Named "state", so that later processing matches Home Assistant state object naming
-    local state = response_data
+    local state = response_data or {}
 
     -- Ensure attribute(s) in config.lua are a table (convert single string if needed)
     local attributes = entity.attributes
     if type(attributes) == "string" then
         attributes = { attributes }
+        -- as a defensive measure, e.g. user forgets "" around string
+    elseif type(attributes) ~= "table" then
+        attributes = {}
     end
 
     local attribute_message = ""
+    local full_message = ""
 
     -- Iterate through user-configured attribute names from config.lua and match against API response
     for _, name in ipairs(attributes) do
@@ -295,7 +294,13 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         attribute_message = attribute_message .. string.format("%s: %s\n", name, value)
     end
 
-    local full_message = base_message .. attribute_message
+    -- Check if attributes were configured
+    if #attributes > 0 then
+        full_message = base_message .. attribute_message
+    else
+        full_message = base_message .. "No attributes configured for this entity.\n"
+    end
+
     return full_message, nil
 end
 
