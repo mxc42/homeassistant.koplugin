@@ -131,32 +131,40 @@ end
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local url, service_data, method
+    local url, method, service_data
 
-    if entity.action then
-        -- POST: Call a service (e.g., light.turn_on, switch.toggle)
-        method = "POST"
+    if entity.type == "action" or entity.type == "action_response" then
         local domain, action = self:getDomainandAction(entity)
         local query_params = entity.response_data and "?return_response=true" or ""
         url = string.format("http://%s:%d/api/services/%s/%s%s",
             ha_config.host, ha_config.port, domain, action, query_params)
+        method = "POST"
         service_data = self:buildServiceData(entity)
     else
         -- GET: Query entity state
         method = "GET"
         url = string.format("http://%s:%d/api/states/%s",
             ha_config.host, ha_config.port, entity.target)
+        method = "GET"
+    else
+        -- Handle unknown or missing entity.type
+        local error_msg = entity.type and
+            string.format("Unknown entity type: '%s'", entity.type) or
+            "Missing entity.type field in 'config.lua'"
+
+        self:buildMessage(entity, true, error_msg)
+        return
     end
 
     -- Perform the request
-    local error, response_data = self:performRequest(url, method, service_data)
+    local error, response_data = self:performRequest(entity, url, method, service_data)
 
     -- Build and show message
-    self:buildMessage(entity, method, error, response_data)
+    self:buildMessage(entity, error, response_data)
 end
 
 --- Executes a REST request to Home Assistant
-function HomeAssistant:performRequest(url, method, service_data)
+function HomeAssistant:performRequest(entity, url, method, service_data)
     http.TIMEOUT = 6
 
     local error_codes = {
@@ -209,21 +217,18 @@ function HomeAssistant:performRequest(url, method, service_data)
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, method, error, response_data)
+function HomeAssistant:buildMessage(entity, error, response_data)
     local messageText, timeout
 
     -- on Error:
     if error == true then
         messageText, timeout = self:buildErrorMessage(entity, response_data)
         -- on Success:
-        -- with Response Data:
-    elseif entity.response_data and method == "POST" then
+    elseif entity.type == "action_response" then
         messageText, timeout = self:buildResponseDataMessage(entity, response_data)
-    elseif method == "POST" then
-        -- Action/"POST":
+    elseif entity.type == "action" then
         messageText, timeout = self:buildActionMessage(entity)
-    else
-        -- State/"GET":
+    elseif entity.type == "query" then
         messageText, timeout = self:buildStateMessage(entity, response_data)
     end
 
