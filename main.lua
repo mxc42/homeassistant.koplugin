@@ -97,6 +97,15 @@ function HomeAssistant:getDomainandAction(entity)
     end
 end
 
+--- Trim leading and trailing whitespace from each line of a multi-line string
+function HomeAssistant:trimWhitespace(str)
+    local lines = {}
+    for line in str:gmatch("[^\n]+") do
+        lines[#lines + 1] = line:match("^%s*(.-)%s*$")
+    end
+    return table.concat(lines, "\n")
+end
+
 --- Helper to build the JSON body for the request
 function HomeAssistant:buildServiceData(entity)
     local body = {}
@@ -135,14 +144,17 @@ function HomeAssistant:onActivateHAEvent(entity)
 
     if entity.type == "action" or entity.type == "action_response" then
         local domain, action = self:getDomainandAction(entity)
-        local query_params = entity.response_data and "?return_response=true" or ""
+        local query_params = entity.type == "action_response" and "?return_response=true" or ""
         url = string.format("http://%s:%d/api/services/%s/%s%s",
             ha_config.host, ha_config.port, domain, action, query_params)
         method = "POST"
         service_data = self:buildServiceData(entity)
-    else
-        -- GET: Query entity state
-        method = "GET"
+    elseif entity.type == "template" then
+        url = string.format("http://%s:%d/api/template",
+            ha_config.host, ha_config.port)
+        method = "POST"
+        service_data = { template = self:trimWhitespace(entity.query) }
+    elseif entity.type == "state" then
         url = string.format("http://%s:%d/api/states/%s",
             ha_config.host, ha_config.port, entity.target)
         method = "GET"
@@ -167,13 +179,6 @@ end
 function HomeAssistant:performRequest(entity, url, method, service_data)
     http.TIMEOUT = 6
 
-    local error_codes = {
-        [400] = "400: Bad Request\nCheck the entity configuration in 'config.lua'.",
-        [401] = "401: Unauthorized\nCheck your Long-Lived Access Token in 'config.lua'.",
-        [404] = "404: Not Found\nInvalid target, check the entity configuration in 'config.lua'.",
-        [405] = "405: Method Not Allowed"
-    }
-
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
     -- Only POST requests include service_data
@@ -194,17 +199,24 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
         sink = ltn12.sink.table(response_body)
     }
 
-    -- Error handling
-    if error_codes[code] then
-        return true, error_codes[code]
-    elseif result == nil or (code ~= 200 and code ~= 201) then
-        return true, code
-    end
-
-    -- Decode json response when required
     local raw_response = table.concat(response_body)
     local response_data = nil
 
+    -- Error handling
+    if result == nil then
+        -- e.g. code =  "connection refused" or "timeout"
+        return true, code
+    elseif code ~= 200 and code ~= 201 then
+        -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
+        return true, code .. " | Server Response:\n" .. raw_response
+    end
+    
+    -- Use undedoced JSON response for templates
+    if entity.type == "template" then
+        return false, raw_response
+    end
+
+    -- Decode JSON response when required
     if raw_response ~= "" then
         local success, decoded = pcall(rapidjson.decode, raw_response)
         response_data = success and decoded or nil
@@ -228,7 +240,9 @@ function HomeAssistant:buildMessage(entity, error, response_data)
         messageText, timeout = self:buildResponseDataMessage(entity, response_data)
     elseif entity.type == "action" then
         messageText, timeout = self:buildActionMessage(entity)
-    elseif entity.type == "query" then
+    elseif entity.type == "template" then
+        messageText, timeout = self:buildTemplateMessage(entity, response_data)
+    elseif entity.type == "state" then
         messageText, timeout = self:buildStateMessage(entity, response_data)
     end
 
@@ -245,7 +259,7 @@ function HomeAssistant:buildErrorMessage(entity, response_data)
     return string.format(_(
             "𝙀𝙧𝙧𝙤𝙧\n" ..
             "%s\n\n" ..
-            "⏵ response:\n" ..
+            "⏵ Details:\n" ..
             "%s"),
         entity.label,
         response_data
@@ -261,6 +275,16 @@ function HomeAssistant:buildActionMessage(entity)
         entity.label,
         entity.action
     ), 5
+end
+
+function HomeAssistant:buildTemplateMessage(entity, response_data)
+    return string.format(_(
+            "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦\n" ..
+            "%s\n\n" ..
+            "%s"),
+        entity.label,
+        response_data
+    ), 10
 end
 
 --- Build success message for state / GET requests
