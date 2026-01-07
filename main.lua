@@ -86,6 +86,7 @@ function HomeAssistant:addToMainMenu(menu_items)
 end
 
 --- Extract domain & action from entity.target or entity.action
+-- TODO: Think of a different way to get domain, if target is not a string.
 function HomeAssistant:getDomainandAction(entity)
     local domain, action
     if entity.action then
@@ -175,12 +176,12 @@ function HomeAssistant:onActivateHAEvent(entity)
 end
 
 --- Executes a REST request to Home Assistant
+-- Only POST requests include service_data / request_body / source
 function HomeAssistant:performRequest(entity, url, method, service_data)
     http.TIMEOUT = 6
 
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
-    -- Only POST requests include service_data
     local headers = {
         ["Authorization"] = "Bearer " .. ha_config.token,
         ["Content-Type"] = service_data and "application/json" or nil,
@@ -209,7 +210,7 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
         -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
         return true, code .. " | Server Response:\n" .. raw_response
     end
-    
+
     -- Use undedoced JSON response for templates
     if entity.type == "template" then
         return false, raw_response
