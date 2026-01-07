@@ -16,6 +16,7 @@
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
 - Actions with response data (currently **todo.get_items**)
+- Evaluate Home Assistant templates
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
   - **sensor.temperature_outside**: `state`, `unit_of_measurement`
@@ -77,22 +78,25 @@ return {
 
 ### Adding Home Assistant entities
 
-Inside the `entities` table in `config.lua`, you can define two types of items:
+Inside the `entities` table in `config.lua`, you can define four types of items:
 
-| Type       | Purpose                                 | Required Fields                 | Optional |
-| :--------- | :-------------------------------------- | :------------------------------ | :------- |
-| **Action** | Control an entity (e.g., turn on light) | `label`, `action`, `target`     | `data`   |
-| **Query**  | Read a state (e.g., check temperature)  | `label`, `target`, `attributes` |          |
+| Type                | Purpose                                           | Required Fields                         | Optional |
+| :------------------ | :------------------------------------------------ | :-------------------------------------- | :------- |
+| **action**          | Control an entity (e.g., turn on light)           | `type`, `label`, `action`, `target`     | `data`   |
+| **action_response** | Get response data from an entity (todo.get_items) | `type`, `label`, `action`, `target`     | `data`   |
+| **state**           | Read a state (e.g., check temperature)            | `type`, `label`, `target`, `attributes` |          |
+| **template**        | Evaluate a template                               | `type`, `label`, `query`                |          |
 
 _Think of each entry as a single Home Assistant action or state query that becomes a button or gesture in KOReader._
 
-### Controlling Entities (Actions)
+### Controlling Entities | type = "action"
 
 Let's start with a simple example: "turn on a light".  
 The entry in `config.lua` would look like this:
 
 ```lua
-{
+{   
+    type = "action",
     label = "Reading Lamp: turn_on",
     action = "light.turn_on",
     target = "light.reading_lamp",
@@ -105,6 +109,7 @@ You can add additional data to your action. In this example we add the data attr
 
 ```lua
 {
+    type = "action",
     label = "Reading Lamp: turn blue",
     action = "light.turn_on",
     target = "light.reading_lamp",
@@ -120,7 +125,7 @@ _The syntax in `config.lua` is loosely based on the YAML action syntax in Home A
 
 To discover what additional data you can send with an action:
 
-- Go to your **Home Assistant instance > Developer Tools > Actions**  
+- Go to your **Home Assistant instance → Developer Tools → Actions**  
   Play around with an action call, then click on "Go to YAML mode"
 
 - Check the official Home Assistant integration documentation, examples:    
@@ -146,6 +151,7 @@ You can either use one single line or indentation:
 
 ```lua
 {
+    type = "action",
     label = "Reading Lamp: turn_on",
     action = "light.turn_on",
     target = {
@@ -157,20 +163,19 @@ You can either use one single line or indentation:
 },
 ```
 
-### Actions with Response Data
+### Actions with Response Data | type = "action_response"
 
 Some Home Assistant actions can return response data.  
 The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items).
 
-To enable this, add the `response_data` field to your configuration.  
 This feature works with a single target only.
 
 ```lua
 {
+    type = "action_response"
     label = "\u{EE54} Shopping List",
     action = "todo.get_items",
     target = "todo.shopping_list",
-    response_data = true, 
     -- data = {
     --     status = "needs_action"
     -- },
@@ -184,14 +189,14 @@ This feature works with a single target only.
 > [!NOTE]
 > This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. For this reason, task descriptions are intentionally not shown.
 
-
-### Getting Entity States (Queries)
+### Get Entity States | type = "state"
 
 To retrieve an entity's state and attributes, omit the `action` field.  
 `attributes` defines which state attributes will be displayed in the result pop-up.
 
 ```lua
 {
+    type = "state",
     label = "Temperature Living Room",
     target = "sensor.living_room_temperature",
     attributes = { "state", "unit_of_measurement", "device_class" },
@@ -212,6 +217,36 @@ Select an entity and check the **State** and **Attributes** sections.
 > * Area and label targeting is not supported
 > * Deeply nested JSON attributes may not display cleanly
 
+### Evaluating Templates | type = "template"
+
+You can evaluate Home Assistant templates with `homeassistant.koplugin`.  
+[Templates](https://www.home-assistant.io/integrations/template/) can display complex & dynamic information.  
+Use them to create conditional messages, going far beyond what **state** offers.  
+
+```lua
+{   
+    type = "template",
+    label = "Time, Sun & Lights",
+    query = [[
+    {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    Sun: {{ "sun.sun" | state_translated }}
+    Lights left on: {{ states.light | selectattr('state', 'eq', 'on') | list | count }}
+    ]]
+},
+```
+Be aware of the `query = [[ ]]` syntax!
+
+<img src="assets/time_sun_template.png" style="width:50%; height:auto;" />
+
+<br>
+
+**How to create and test your templates:**
+  
+Go to your **Home Assistant instance → Developer Tools → Template**  
+Use the [template editor](https://my.home-assistant.io/redirect/developer_template/) to test your code before pasting it into the `query = [[...]]` section of your config.
+
+<img src="assets/template_editor.png" style="width:100%; height:auto;" />
+
 ## Examples
 
 ### Actions
@@ -220,6 +255,7 @@ Select an entity and check the **State** and **Attributes** sections.
 
 ```lua
 {
+    type = "action",
     label = "All Switches: turn_off",
     target = "all",
     action = "switch.turn_off",
@@ -230,6 +266,7 @@ Select an entity and check the **State** and **Attributes** sections.
 
 ```lua
 {
+    type = "action",
     label = "Play Music",
     action = "media_player.play_media",
     target = "media_player.sonos",
@@ -244,6 +281,7 @@ Select an entity and check the **State** and **Attributes** sections.
 
 ```lua
 {
+    type = "action",
     label = "Set Desk Height to 80cm",
     target = "number.upsy_desky_target_desk_height",
     action = "number.set_value",    
@@ -257,6 +295,7 @@ Select an entity and check the **State** and **Attributes** sections.
 
 ```lua
 {
+    type = "action",
     label = "Quit Kodi",
     target = "media_player.mac_mini",
     action = "kodi.call_method",
@@ -276,6 +315,7 @@ In theory you can take the whole data part (!) from a Home Assistant YAML action
 
 ```lua
 {
+    type = "action",
     label = "Play Nobody 2",
     action = "media_player.play_media",
     target = "media_player.firefox",
@@ -308,12 +348,39 @@ In theory you can take the whole data part (!) from a Home Assistant YAML action
 
 </details>
 
+### Templates
+
+**Get information about the currently playing song (as template):**
+
+```lua
+{
+    type = "template",
+    label = "Currently Playing",
+    query = [[
+    {% set player = 'media_player.firefox' %}
+    {% set duration = state_attr(player, 'media_duration') | int(0) %}
+
+    Song: {{ state_attr(player, 'media_title') or '-' }}
+    Artist: {{ state_attr(player, 'media_artist') or '-' }}
+    Album: {{ state_attr(player, 'media_album_name') or '-' }}
+    Length: {{
+    (duration // 60) ~ ':' ~ '%02d'|format(duration % 60)
+    if duration > 0
+    else '-'
+    }}
+    ]]
+},
+```
+
+<img src="assets/current_song_template.png" style="width:50%; height:auto;" />
+
 ### State Queries
 
 **Get information about the currently playing song:**
 
 ```lua
 {
+    type = "state",
     label = "What's playing?",
     target = "media_player.jellyfin_firefox",
     attributes = { "media_title", "media_artist", "media_duration" },
@@ -326,6 +393,7 @@ In theory you can take the whole data part (!) from a Home Assistant YAML action
 
 ```lua
 {
+    type = "state",
     label = "Shed Light on?",
     target = "light.shed_ceiling_light",
     attributes = { "state", "brightness", "last_changed" },
