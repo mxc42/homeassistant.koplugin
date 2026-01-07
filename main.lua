@@ -141,22 +141,21 @@ end
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
     local url, method, service_data
+    local base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
 
     if entity.type == "action" or entity.type == "action_response" then
         local domain, action = self:getDomainandAction(entity)
-        local query_params = entity.type == "action_response" and "?return_response=true" or ""
-        url = string.format("http://%s:%d/api/services/%s/%s%s",
-            ha_config.host, ha_config.port, domain, action, query_params)
+        local response_params = entity.type == "action_response" and "?return_response=true" or ""
+        url = string.format("%s/api/services/%s/%s%s",
+            base_url, domain, action, response_params)
         method = "POST"
         service_data = self:buildServiceData(entity)
     elseif entity.type == "template" then
-        url = string.format("http://%s:%d/api/template",
-            ha_config.host, ha_config.port)
+        url = string.format("%s/api/template", base_url)
         method = "POST"
         service_data = { template = self:trimWhitespace(entity.query) }
     elseif entity.type == "state" then
-        url = string.format("http://%s:%d/api/states/%s",
-            ha_config.host, ha_config.port, entity.target)
+        url = string.format("%s/api/states/%s", base_url, entity.target)
         method = "GET"
     else
         -- Handle unknown or missing entity.type
