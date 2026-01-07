@@ -230,23 +230,32 @@ end
 
 --- Build user-facing message based on API response
 function HomeAssistant:buildMessage(entity, error, response_data)
-    local messageText, timeout
-
     -- on Error:
     if error == true then
-        messageText, timeout = self:buildErrorMessage(entity, response_data)
+        self:buildErrorMessage(entity, response_data)
         -- on Success:
     elseif entity.type == "action_response" then
-        messageText, timeout = self:buildResponseDataMessage(entity, response_data)
+        self:buildResponseDataMessage(entity, response_data)
     elseif entity.type == "action" then
-        messageText, timeout = self:buildActionMessage(entity)
+        self:buildActionMessage(entity)
     elseif entity.type == "template" then
-        messageText, timeout = self:buildTemplateMessage(entity, response_data)
+        self:buildTemplateMessage(entity, response_data)
     elseif entity.type == "state" then
-        messageText, timeout = self:buildStateMessage(entity, response_data)
+        self:buildStateMessage(entity, response_data)
     end
+end
 
-    -- Show message box
+--- Helper function to format and display a message
+function HomeAssistant:showMessage(title, entity, content, timeout)
+    local messageText = string.format(_(
+            "%s\n" ..
+            "%s\n\n" ..
+            "%s"),
+        title,
+        entity.label,
+        content
+    )
+
     UIManager:show(InfoMessage:new {
         text = messageText,
         timeout = timeout,
@@ -256,46 +265,23 @@ end
 
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, response_data)
-    return string.format(_(
-            "𝙀𝙧𝙧𝙤𝙧\n" ..
-            "%s\n\n" ..
-            "⏵ Details:\n" ..
-            "%s"),
-        entity.label,
-        response_data
-    ), 10
+    local error_content = string.format("⏵ Details:\n%s", response_data)
+    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, 10)
 end
 
 --- Build success message for actions / POST requests
 function HomeAssistant:buildActionMessage(entity)
-    return string.format(_(
-            "𝘗𝘦𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯\n" ..
-            "%s\n\n" ..
-            "action: %s"),
-        entity.label,
-        entity.action
-    ), 5
+    local action_content = string.format("action: %s", entity.action)
+    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, 5)
 end
 
+--- Build success message for template evaluation
 function HomeAssistant:buildTemplateMessage(entity, response_data)
-    return string.format(_(
-            "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦\n" ..
-            "%s\n\n" ..
-            "%s"),
-        entity.label,
-        response_data
-    ), 8
+    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, 8)
 end
 
 --- Build success message for state / GET requests
 function HomeAssistant:buildStateMessage(entity, response_data)
-    -- Build the base message
-    local base_message = string.format(_(
-            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦\n" ..
-            "%s\n\n"),
-        entity.label
-    )
-
     -- Named "state", so that later processing matches Home Assistant state object naming
     local state = response_data or {}
 
@@ -308,29 +294,25 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         attributes = {}
     end
 
-    local attribute_message = ""
-    local full_message = ""
+    local attribute_content = ""
 
-    -- Iterate through user-configured attribute names from config.lua and match against API response
-    for _, name in ipairs(attributes) do
-        -- First check state[attribute_name] (e.g., state.state, state.last_changed)
-        -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
-        local attribute_value = state[name]
-            or (state.attributes and state.attributes[name])
-
-        -- Handle attribute value formatting
-        local value = self:formatAttributeValue(attribute_value)
-        attribute_message = attribute_message .. string.format("%s: %s\n", name, value)
-    end
-
-    -- Check if attributes were configured
     if #attributes > 0 then
-        full_message = base_message .. attribute_message
+        -- Iterate through user-configured attribute names
+        for _, name in ipairs(attributes) do
+            -- First check state[attribute_name] (e.g., state.state, state.last_changed)
+            -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
+            local attribute_value = state[name]
+                or (state.attributes and state.attributes[name])
+
+            -- Handle attribute value formatting
+            local value = self:formatAttributeValue(attribute_value)
+            attribute_content = attribute_content .. string.format("%s: %s\n", name, value)
+        end
     else
-        full_message = base_message .. "No attributes configured for this entity.\n"
+        attribute_content = "No attributes configured for this entity.\n"
     end
 
-    return full_message, 8
+    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, 8)
 end
 
 -- Helper function to format any state attribute value into a string
@@ -355,31 +337,24 @@ end
 
 --- Build success message for actions with response_data
 function HomeAssistant:buildResponseDataMessage(entity, response_data)
-    -- Build the base message
-    local base_message = string.format(_(
-            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢\n" ..
-            "%s\n\n"),
-        entity.label
-    )
-
-    local full_message = ""
+    local response_content
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
-        full_message = base_message .. self:formatTodoItems(response_data)
+        response_content = self:formatTodoItems(response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section.\n"
+        response_content = "Configuration error.\nCheck the documentation 'Response Data' section.\n"
     end
 
-    return full_message, 8
+    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, 8)
 end
 
 --- Format todo list items
 function HomeAssistant:formatTodoItems(response_data)
     local service_response = response_data.service_response
-    local todo_message = ""
+    local todo_content = ""
 
     -- Iterate over service_response (key: entity_id -> value: todo_response)
     -- We are using a for loop instead of 'local items = service_response[entity.target].items'
@@ -398,7 +373,7 @@ function HomeAssistant:formatTodoItems(response_data)
             -- PASS 1: Add only the active (non-completed) items first
             for _, item in ipairs(items) do
                 if item.status == "needs_action" then
-                    todo_message = todo_message ..
+                    todo_content = todo_content ..
                         string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
                 end
             end
@@ -406,7 +381,7 @@ function HomeAssistant:formatTodoItems(response_data)
             -- PASS 2: Add only the completed items at the bottom
             for _, item in ipairs(items) do
                 if item.status == "completed" then
-                    todo_message = todo_message ..
+                    todo_content = todo_content ..
                         string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
                 end
             end
@@ -416,7 +391,7 @@ function HomeAssistant:formatTodoItems(response_data)
         end
     end
 
-    return todo_message
+    return todo_content
 end
 
 return HomeAssistant
