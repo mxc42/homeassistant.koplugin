@@ -200,9 +200,8 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
     }
 
     local raw_response = table.concat(response_body)
-    local response_data = nil
 
-    -- Error handling
+    -- Error Handling
     if result == nil then
         -- e.g. code =  "connection refused" or "timeout"
         return true, code
@@ -211,21 +210,23 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
         return true, code .. " | Server Response:\n" .. raw_response
     end
 
-    -- Use undedoced JSON response for templates
+    -- Successful Response Handling
     if entity.type == "template" then
         return false, raw_response
     end
 
-    -- Decode JSON response when required
-    if raw_response ~= "" then
-        local success, decoded = pcall(rapidjson.decode, raw_response)
-        response_data = success and decoded or nil
-    else
-        -- Handle JSON Decode Error
-        return true, "JSON Decode Failed"
+    if raw_response == "" then
+        return false, nil -- Success with no data
     end
 
-    return false, response_data
+    -- Try to decode JSON for actions that return data
+    local success, decoded = pcall(rapidjson.decode, raw_response)
+    if not success then
+        return true, string.format("JSON decode failed:\n%s", decoded)
+    end
+
+    -- Successfully decoded JSON.
+    return false, decoded
 end
 
 --- Build user-facing message based on API response
