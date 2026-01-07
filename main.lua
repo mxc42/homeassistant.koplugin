@@ -262,7 +262,7 @@ function HomeAssistant:buildErrorMessage(entity, response_data)
             "%s"),
         entity.label,
         response_data
-    ), nil
+    ), 10
 end
 
 --- Build success message for actions / POST requests
@@ -283,7 +283,7 @@ function HomeAssistant:buildTemplateMessage(entity, response_data)
             "%s"),
         entity.label,
         response_data
-    ), 10
+    ), 8
 end
 
 --- Build success message for state / GET requests
@@ -329,7 +329,7 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         full_message = base_message .. "No attributes configured for this entity.\n"
     end
 
-    return full_message, nil
+    return full_message, 8
 end
 
 -- Helper function to format any state attribute value into a string
@@ -372,7 +372,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
         full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section.\n"
     end
 
-    return full_message, nil
+    return full_message, 8
 end
 
 --- Format todo list items
