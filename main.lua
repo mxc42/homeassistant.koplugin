@@ -294,9 +294,11 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         attributes = {}
     end
 
-    local attribute_content = ""
+    local attribute_content
 
     if #attributes > 0 then
+        local attribute_lines = {}
+
         -- Iterate through user-configured attribute names
         for _, name in ipairs(attributes) do
             -- First check state[attribute_name] (e.g., state.state, state.last_changed)
@@ -306,16 +308,17 @@ function HomeAssistant:buildStateMessage(entity, response_data)
 
             -- Handle attribute value formatting
             local value = self:formatAttributeValue(attribute_value)
-            attribute_content = attribute_content .. string.format("%s: %s\n", name, value)
+            table.insert(attribute_lines, string.format("%s: %s", name, value))
         end
+        attribute_content = table.concat(attribute_lines, "\n")
     else
-        attribute_content = "No attributes configured for this entity.\n"
+        attribute_content = "No attributes configured for this entity."
     end
 
     self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, 8)
 end
 
--- Helper function to format any state attribute value into a string
+--- Helper function to format any state attribute value into a string
 function HomeAssistant:formatAttributeValue(value)
     local value_type = type(value)
 
@@ -345,7 +348,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        response_content = "Configuration error.\nCheck the documentation 'Response Data' section.\n"
+        response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
 
     self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, 8)
@@ -367,24 +370,26 @@ function HomeAssistant:formatTodoItems(response_data)
         if type(items) == "table" then
             -- Handle empty list
             if #items == 0 then
-                return "Todo list is empty\n"
+                return "Your To-do list is empty."
             end
+
+            local todo_parts = {}
 
             -- PASS 1: Add only the active (non-completed) items first
             for _, item in ipairs(items) do
                 if item.status == "needs_action" then
-                    todo_content = todo_content ..
-                        string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
+                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
                 end
             end
 
             -- PASS 2: Add only the completed items at the bottom
             for _, item in ipairs(items) do
                 if item.status == "completed" then
-                    todo_content = todo_content ..
-                        string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
+                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
                 end
             end
+
+            todo_content = table.concat(todo_parts, "\n")
 
             -- Stop after the first entity's items are processed
             break
