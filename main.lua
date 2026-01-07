@@ -323,7 +323,7 @@ end
 function HomeAssistant:formatAttributeValue(value)
     local value_type = type(value)
 
-    if value == rapidjson.null then
+    if value == nil or value == rapidjson.null then
         -- Handle non-existent, malformed or JSON decode errors
         return "null"
     elseif value_type == "table" then
