@@ -149,27 +149,24 @@ function HomeAssistant:onActivateHAEvent(entity)
     local url, method, service_data
     local base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
 
-    if entity.type == "action" or entity.type == "action_response" then
+    if entity.template then
+        url = string.format("%s/api/template", base_url)
+        method = "POST"
+        service_data = { template = self:trimWhitespace(entity.template) }
+
+    elseif entity.action then
         local domain, action = self:getDomainandAction(entity)
-        local response_parameter = entity.type == "action_response" and "?return_response=true" or ""
+        local response_parameter = entity.response_data == true and "?return_response=true" or ""
         url = string.format("%s/api/services/%s/%s%s",
             base_url, domain, action, response_parameter)
         method = "POST"
         service_data = self:buildServiceData(entity)
-    elseif entity.type == "template" then
-        url = string.format("%s/api/template", base_url)
-        method = "POST"
-        service_data = { template = self:trimWhitespace(entity.query) }
-    elseif entity.type == "state" then
+
+    elseif entity.attributes then
         url = string.format("%s/api/states/%s", base_url, entity.target)
         method = "GET"
     else
-        -- Handle unknown or missing entity.type
-        local error_msg = entity.type and
-            string.format("Unknown entity type: '%s'", entity.type) or
-            "Missing entity.type field in 'config.lua'"
-
-        self:buildMessage(entity, true, error_msg)
+        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
@@ -216,7 +213,7 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
     end
 
     -- Successful Response Handling
-    if entity.type == "template" then
+    if entity.template then
         return false, raw_response
     end
 
@@ -240,13 +237,13 @@ function HomeAssistant:buildMessage(entity, error, response_data)
     if error == true then
         self:buildErrorMessage(entity, response_data)
         -- on Success:
-    elseif entity.type == "action_response" then
-        self:buildResponseDataMessage(entity, response_data)
-    elseif entity.type == "action" then
-        self:buildActionMessage(entity)
-    elseif entity.type == "template" then
+    elseif entity.template then
         self:buildTemplateMessage(entity, response_data)
-    elseif entity.type == "state" then
+    elseif entity.action and entity.response_data then
+        self:buildResponseDataMessage(entity, response_data)
+    elseif entity.action then
+        self:buildActionMessage(entity)
+    elseif entity.attributes then
         self:buildStateMessage(entity, response_data)
     end
 end
