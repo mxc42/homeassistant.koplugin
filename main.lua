@@ -37,8 +37,13 @@ local Glyphs = {
 }
 
 local HomeAssistant = WidgetContainer:extend {
-    name = "homeassistant",
-    is_doc_only = false,
+    name                     = "homeassistant",
+    is_doc_only              = false,
+
+    HTTP_TIMEOUT             = 6,
+    ERROR_MESSAGE_TIMEOUT    = 10,
+    RESPONSE_MESSAGE_TIMEOUT = 8,
+    SIMPLE_MESSAGE_TIMEOUT   = 5,
 }
 
 --- Initialize the plugin
@@ -178,7 +183,7 @@ end
 --- Executes a REST request to Home Assistant
 -- Only POST requests include service_data / request_body / source
 function HomeAssistant:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = 6
+    http.TIMEOUT = self.HTTP_TIMEOUT
 
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
@@ -267,18 +272,18 @@ end
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, response_data)
     local error_content = string.format("⏵ Details:\n%s", response_data)
-    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, 10)
+    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, self.ERROR_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for actions / POST requests
 function HomeAssistant:buildActionMessage(entity)
     local action_content = string.format("action: %s", entity.action)
-    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, 5)
+    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, self.SIMPLE_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for template evaluation
 function HomeAssistant:buildTemplateMessage(entity, response_data)
-    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, 8)
+    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for state / GET requests
@@ -316,7 +321,7 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         attribute_content = "No attributes configured for this entity."
     end
 
-    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, 8)
+    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Helper function to format any state attribute value into a string
@@ -352,7 +357,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
         response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
 
-    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, 8)
+    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Format todo list items
