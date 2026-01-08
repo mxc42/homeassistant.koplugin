@@ -88,7 +88,7 @@ Inside the `entities` table in `config.lua`, you can define three types of items
 
 _Think of each entry as a single Home Assistant action or state query that becomes a button or gesture in KOReader._
 
-### Controlling Entities | "action"
+### Controlling Entities | 'action'
 
 Let's start with a simple example: "turn on a light".  
 The entry in `config.lua` would look like this:
@@ -101,7 +101,7 @@ The entry in `config.lua` would look like this:
 },
 ```
 
-### Adding Data to Actions
+### Adding Data to Actions | 'data = {...}'
 
 You can add additional data to your action. In this example we add the data attributes `brightness` and `rgb_color` to [action **light.turn_on**](https://www.home-assistant.io/integrations/light/#action-lightturn_on) through `data`:
 
@@ -159,7 +159,7 @@ You can either use one single line or indentation:
 },
 ```
 
-### Actions with Response Data | response_data = "true"
+### Actions with Response Data | 'response_data = true'
 
 Some Home Assistant actions can return response data.  
 The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items).
@@ -172,7 +172,7 @@ This feature works with a single target only.
     type = "action_response"
     label = "\u{EE54} Shopping List",
     action = "todo.get_items",
-    response_data = "true",
+    response_data = true,
     target = "todo.shopping_list",
     -- data = {
     --     status = "needs_action"
@@ -187,7 +187,7 @@ This feature works with a single target only.
 > [!NOTE]
 > This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. For this reason, task descriptions are intentionally not shown.
 
-### Get Entity States | "state query"
+### Get Entity States | 'state query'
 
 To retrieve an entity's state and attributes, omit the `action` field.  
 `attributes` defines which state attributes will be displayed in the result pop-up.
@@ -214,7 +214,7 @@ Select an entity and check the **State** and **Attributes** sections.
 > * Area and label targeting is not supported
 > * Deeply nested JSON attributes may not display cleanly
 
-### Evaluating Templates | "template"
+### Evaluating Templates | 'template'
 
 You can evaluate Home Assistant templates with `homeassistant.koplugin`.  
 [Templates](https://www.home-assistant.io/integrations/template/) can display complex & dynamic information.  
@@ -230,7 +230,7 @@ Use them to create conditional messages, going far beyond what **state** offers.
     ]]
 },
 ```
-Be aware of the `template = [[ ]]` syntax!
+Be aware of the `template = [[ ]]` syntax.
 
 <img src="assets/time_sun_template.png" style="width:50%; height:auto;" />
 
@@ -239,7 +239,7 @@ Be aware of the `template = [[ ]]` syntax!
 **How to create and test your templates:**
   
 Go to your **Home Assistant instance → Developer Tools → Template**  
-Use the [template editor](https://my.home-assistant.io/redirect/developer_template/) to test your code before pasting it into the `query = [[...]]` section of your config.
+Use the [template editor](https://my.home-assistant.io/redirect/developer_template/) to test your code before pasting it into the `template = [[...]]` section of your config.
 
 <img src="assets/template_editor.png" style="width:100%; height:auto;" />
 
