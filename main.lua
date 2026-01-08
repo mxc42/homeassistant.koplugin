@@ -191,7 +191,7 @@ function HomeAssistant:performRequest(entity, url, method, service_data)
     local response_body = {}
 
     -- result, status code, headers, status line
-    local result, code, __, __ = http.request {
+    local result, code = http.request {
         url = url,
         method = method,
         headers = headers,
