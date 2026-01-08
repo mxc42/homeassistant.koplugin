@@ -146,9 +146,9 @@ function HomeAssistant:onActivateHAEvent(entity)
 
     if entity.type == "action" or entity.type == "action_response" then
         local domain, action = self:getDomainandAction(entity)
-        local response_params = entity.type == "action_response" and "?return_response=true" or ""
+        local response_parameter = entity.type == "action_response" and "?return_response=true" or ""
         url = string.format("%s/api/services/%s/%s%s",
-            base_url, domain, action, response_params)
+            base_url, domain, action, response_parameter)
         method = "POST"
         service_data = self:buildServiceData(entity)
     elseif entity.type == "template" then
