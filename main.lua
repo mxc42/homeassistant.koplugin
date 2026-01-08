@@ -102,7 +102,7 @@ end
 function HomeAssistant:trimWhitespace(str)
     local lines = {}
     for line in str:gmatch("[^\n]+") do
-        lines[#lines + 1] = line:match("^%s*(.-)%s*$")
+        table.insert(lines, line:match("^%s*(.-)%s*$"))
     end
     return table.concat(lines, "\n")
 end
