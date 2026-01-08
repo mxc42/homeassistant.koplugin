@@ -6,7 +6,7 @@
 
 <p align="center">
 <img src="assets/homeassistant_koplugin_screenshots.png"  alt="homeassistant.koplugin screenshots" />
-  <i>homeassistant.koplugin: a state query [left] & QuickMenu gesture [right]</i>
+  <i>homeassistant.koplugin: a template query [left] & QuickMenu gesture [right]</i>
 </p>
 
 ## Features
