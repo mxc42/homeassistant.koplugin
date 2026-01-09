@@ -41,7 +41,7 @@ local HomeAssistant = WidgetContainer:extend {
     is_doc_only              = false,
 
     HTTP_TIMEOUT             = 6,
-    ERROR_MESSAGE_TIMEOUT    = 10,
+    ERROR_MESSAGE_TIMEOUT    = nil,
     RESPONSE_MESSAGE_TIMEOUT = 8,
     SIMPLE_MESSAGE_TIMEOUT   = 5,
 }
