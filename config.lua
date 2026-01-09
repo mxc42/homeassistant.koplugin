@@ -1,7 +1,8 @@
 return {
     -- Home Assistant connection settings
-    host = "192.168.1.10", -- Change to your Home Assistant IP Address
-    port = 8123,           -- Default Home Assistant Port
+    host = "192.168.1.10", -- Change to your Home Assistant IP Address or Hostname
+    https = false,         -- False or empty for http, true for https
+    port = 8123,           -- Default Home Assistant Port (probably 443 if using https)
     token =                -- Change to your own Long-Lived Access Token
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 

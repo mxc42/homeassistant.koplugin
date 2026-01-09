@@ -147,7 +147,7 @@ end
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
     local url, method, service_data
-    local base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
+    local base_url = string.format("%s://%s:%d", ha_config.https and "https" or "http", ha_config.host, ha_config.port)
 
     if entity.template then
         url = string.format("%s/api/template", base_url)
