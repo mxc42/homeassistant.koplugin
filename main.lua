@@ -37,8 +37,13 @@ local Glyphs = {
 }
 
 local HomeAssistant = WidgetContainer:extend {
-    name = "homeassistant",
-    is_doc_only = false,
+    name                     = "homeassistant",
+    is_doc_only              = false,
+
+    HTTP_TIMEOUT             = 6,
+    ERROR_MESSAGE_TIMEOUT    = nil,
+    RESPONSE_MESSAGE_TIMEOUT = 8,
+    SIMPLE_MESSAGE_TIMEOUT   = 5,
 }
 
 --- Initialize the plugin
@@ -86,6 +91,7 @@ function HomeAssistant:addToMainMenu(menu_items)
 end
 
 --- Extract domain & action from entity.target or entity.action
+-- TODO: Think of a different way to get domain, if target is not a string.
 function HomeAssistant:getDomainandAction(entity)
     local domain, action
     if entity.action then
@@ -95,6 +101,15 @@ function HomeAssistant:getDomainandAction(entity)
         domain = entity.target:match("^([^.]+)")
         return domain, nil
     end
+end
+
+--- Trim leading and trailing whitespace from each line of a multi-line string
+function HomeAssistant:trimWhitespace(str)
+    local lines = {}
+    for line in str:gmatch("[^\n]+") do
+        table.insert(lines, line:match("^%s*(.-)%s*$"))
+    end
+    return table.concat(lines, "\n")
 end
 
 --- Helper to build the JSON body for the request
@@ -131,44 +146,44 @@ end
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local url, service_data, method
+    local url, method, service_data
+    local base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
 
-    if entity.action then
-        -- POST: Call a service (e.g., light.turn_on, switch.toggle)
+    if entity.template then
+        url = string.format("%s/api/template", base_url)
         method = "POST"
+        service_data = { template = self:trimWhitespace(entity.template) }
+
+    elseif entity.action then
         local domain, action = self:getDomainandAction(entity)
-        local query_params = entity.response_data and "?return_response=true" or ""
-        url = string.format("http://%s:%d/api/services/%s/%s%s",
-            ha_config.host, ha_config.port, domain, action, query_params)
+        local response_parameter = entity.response_data == true and "?return_response=true" or ""
+        url = string.format("%s/api/services/%s/%s%s",
+            base_url, domain, action, response_parameter)
+        method = "POST"
         service_data = self:buildServiceData(entity)
-    else
-        -- GET: Query entity state
+
+    elseif entity.attributes then
+        url = string.format("%s/api/states/%s", base_url, entity.target)
         method = "GET"
-        url = string.format("http://%s:%d/api/states/%s",
-            ha_config.host, ha_config.port, entity.target)
+    else
+        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
     end
 
     -- Perform the request
-    local error, response_data = self:performRequest(url, method, service_data)
+    local error, response_data = self:performRequest(entity, url, method, service_data)
 
     -- Build and show message
-    self:buildMessage(entity, method, error, response_data)
+    self:buildMessage(entity, error, response_data)
 end
 
 --- Executes a REST request to Home Assistant
-function HomeAssistant:performRequest(url, method, service_data)
-    http.TIMEOUT = 6
-
-    local error_codes = {
-        [400] = "400: Bad Request\nCheck the entity configuration in 'config.lua'.",
-        [401] = "401: Unauthorized\nCheck your Long-Lived Access Token in 'config.lua'.",
-        [404] = "404: Not Found\nInvalid target, check the entity configuration in 'config.lua'.",
-        [405] = "405: Method Not Allowed"
-    }
+-- Only POST requests include service_data / request_body / source
+function HomeAssistant:performRequest(entity, url, method, service_data)
+    http.TIMEOUT = self.HTTP_TIMEOUT
 
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
-    -- Only POST requests include service_data
     local headers = {
         ["Authorization"] = "Bearer " .. ha_config.token,
         ["Content-Type"] = service_data and "application/json" or nil,
@@ -178,7 +193,7 @@ function HomeAssistant:performRequest(url, method, service_data)
     local response_body = {}
 
     -- result, status code, headers, status line
-    local result, code, __, __ = http.request {
+    local result, code = http.request {
         url = url,
         method = method,
         headers = headers,
@@ -186,48 +201,64 @@ function HomeAssistant:performRequest(url, method, service_data)
         sink = ltn12.sink.table(response_body)
     }
 
-    -- Error handling
-    if error_codes[code] then
-        return true, error_codes[code]
-    elseif result == nil or (code ~= 200 and code ~= 201) then
-        return true, code
-    end
-
-    -- Decode json response when required
     local raw_response = table.concat(response_body)
-    local response_data = nil
 
-    if raw_response ~= "" then
-        local success, decoded = pcall(rapidjson.decode, raw_response)
-        response_data = success and decoded or nil
-    else
-        -- Handle JSON Decode Error
-        return true, "JSON Decode Failed"
+    -- Error Handling
+    if result == nil then
+        -- e.g. code =  "connection refused" or "timeout"
+        return true, code
+    elseif code ~= 200 and code ~= 201 then
+        -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
+        return true, code .. " | Server Response:\n" .. raw_response
     end
 
-    return false, response_data
+    -- Successful Response Handling
+    if entity.template then
+        return false, raw_response
+    end
+
+    if raw_response == "" then
+        return false, nil -- Success with no data
+    end
+
+    -- Try to decode JSON for actions that return data
+    local success, decoded = pcall(rapidjson.decode, raw_response)
+    if not success then
+        return true, string.format("JSON decode failed:\n%s", decoded)
+    end
+
+    -- Successfully decoded JSON.
+    return false, decoded
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, method, error, response_data)
-    local messageText, timeout
-
+function HomeAssistant:buildMessage(entity, error, response_data)
     -- on Error:
     if error == true then
-        messageText, timeout = self:buildErrorMessage(entity, response_data)
+        self:buildErrorMessage(entity, response_data)
         -- on Success:
-        -- with Response Data:
-    elseif entity.response_data and method == "POST" then
-        messageText, timeout = self:buildResponseDataMessage(entity, response_data)
-    elseif method == "POST" then
-        -- Action/"POST":
-        messageText, timeout = self:buildActionMessage(entity)
-    else
-        -- State/"GET":
-        messageText, timeout = self:buildStateMessage(entity, response_data)
+    elseif entity.template then
+        self:buildTemplateMessage(entity, response_data)
+    elseif entity.action and entity.response_data then
+        self:buildResponseDataMessage(entity, response_data)
+    elseif entity.action then
+        self:buildActionMessage(entity)
+    elseif entity.attributes then
+        self:buildStateMessage(entity, response_data)
     end
+end
 
-    -- Show message box
+--- Helper function to format and display a message
+function HomeAssistant:showMessage(title, entity, content, timeout)
+    local messageText = string.format(_(
+            "%s\n" ..
+            "%s\n\n" ..
+            "%s"),
+        title,
+        entity.label,
+        content
+    )
+
     UIManager:show(InfoMessage:new {
         text = messageText,
         timeout = timeout,
@@ -237,36 +268,23 @@ end
 
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, response_data)
-    return string.format(_(
-            "𝙀𝙧𝙧𝙤𝙧\n" ..
-            "%s\n\n" ..
-            "⏵ response:\n" ..
-            "%s"),
-        entity.label,
-        response_data
-    ), nil
+    local error_content = string.format("⏵ Details:\n%s", response_data)
+    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, self.ERROR_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for actions / POST requests
 function HomeAssistant:buildActionMessage(entity)
-    return string.format(_(
-            "𝘗𝘦𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯\n" ..
-            "%s\n\n" ..
-            "action: %s"),
-        entity.label,
-        entity.action
-    ), 5
+    local action_content = string.format("action: %s", entity.action)
+    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, self.SIMPLE_MESSAGE_TIMEOUT)
+end
+
+--- Build success message for template evaluation
+function HomeAssistant:buildTemplateMessage(entity, response_data)
+    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for state / GET requests
 function HomeAssistant:buildStateMessage(entity, response_data)
-    -- Build the base message
-    local base_message = string.format(_(
-            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦\n" ..
-            "%s\n\n"),
-        entity.label
-    )
-
     -- Named "state", so that later processing matches Home Assistant state object naming
     local state = response_data or {}
 
@@ -279,36 +297,35 @@ function HomeAssistant:buildStateMessage(entity, response_data)
         attributes = {}
     end
 
-    local attribute_message = ""
-    local full_message = ""
+    local attribute_content
 
-    -- Iterate through user-configured attribute names from config.lua and match against API response
-    for _, name in ipairs(attributes) do
-        -- First check state[attribute_name] (e.g., state.state, state.last_changed)
-        -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
-        local attribute_value = state[name]
-            or (state.attributes and state.attributes[name])
-
-        -- Handle attribute value formatting
-        local value = self:formatAttributeValue(attribute_value)
-        attribute_message = attribute_message .. string.format("%s: %s\n", name, value)
-    end
-
-    -- Check if attributes were configured
     if #attributes > 0 then
-        full_message = base_message .. attribute_message
+        local attribute_lines = {}
+
+        -- Iterate through user-configured attribute names
+        for _, name in ipairs(attributes) do
+            -- First check state[attribute_name] (e.g., state.state, state.last_changed)
+            -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
+            local attribute_value = state[name]
+                or (state.attributes and state.attributes[name])
+
+            -- Handle attribute value formatting
+            local value = self:formatAttributeValue(attribute_value)
+            table.insert(attribute_lines, string.format("%s: %s", name, value))
+        end
+        attribute_content = table.concat(attribute_lines, "\n")
     else
-        full_message = base_message .. "No attributes configured for this entity.\n"
+        attribute_content = "No attributes configured for this entity."
     end
 
-    return full_message, nil
+    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
--- Helper function to format any state attribute value into a string
+--- Helper function to format any state attribute value into a string
 function HomeAssistant:formatAttributeValue(value)
     local value_type = type(value)
 
-    if value == rapidjson.null then
+    if value == nil or value == rapidjson.null then
         -- Handle non-existent, malformed or JSON decode errors
         return "null"
     elseif value_type == "table" then
@@ -326,31 +343,24 @@ end
 
 --- Build success message for actions with response_data
 function HomeAssistant:buildResponseDataMessage(entity, response_data)
-    -- Build the base message
-    local base_message = string.format(_(
-            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢\n" ..
-            "%s\n\n"),
-        entity.label
-    )
-
-    local full_message = ""
+    local response_content
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
-        full_message = base_message .. self:formatTodoItems(response_data)
+        response_content = self:formatTodoItems(response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section.\n"
+        response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
 
-    return full_message, nil
+    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, self.RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Format todo list items
 function HomeAssistant:formatTodoItems(response_data)
     local service_response = response_data.service_response
-    local todo_message = ""
+    local todo_content = ""
 
     -- Iterate over service_response (key: entity_id -> value: todo_response)
     -- We are using a for loop instead of 'local items = service_response[entity.target].items'
@@ -363,31 +373,33 @@ function HomeAssistant:formatTodoItems(response_data)
         if type(items) == "table" then
             -- Handle empty list
             if #items == 0 then
-                return "Todo list is empty\n"
+                return "Your To-do list is empty."
             end
+
+            local todo_parts = {}
 
             -- PASS 1: Add only the active (non-completed) items first
             for _, item in ipairs(items) do
                 if item.status == "needs_action" then
-                    todo_message = todo_message ..
-                        string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
+                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
                 end
             end
 
             -- PASS 2: Add only the completed items at the bottom
             for _, item in ipairs(items) do
                 if item.status == "completed" then
-                    todo_message = todo_message ..
-                        string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
+                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
                 end
             end
+
+            todo_content = table.concat(todo_parts, "\n")
 
             -- Stop after the first entity's items are processed
             break
         end
     end
 
-    return todo_message
+    return todo_content
 end
 
 return HomeAssistant

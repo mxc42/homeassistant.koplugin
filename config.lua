@@ -53,5 +53,16 @@ return {
             target = "binary_sensor.front_door",
             attributes = { "state", "last_changed" },
         },
+        -- Evaluate a Template:
+        {
+            label = "Inside Temperature",
+            template = [[
+            {% set my_test_json = {
+            "temperature": 25,
+            "unit": "°C"
+            } %}
+            The temperature is {{ my_test_json.temperature }} {{ my_test_json.unit }}.
+            ]]
+        },
     },
 }
