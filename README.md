@@ -217,7 +217,7 @@ Select an entity and check the **State** and **Attributes** sections.
 ### Evaluating Templates | 'template'
 
 You can evaluate Home Assistant templates with `homeassistant.koplugin`.  
-[Templates](https://www.home-assistant.io/integrations/template/) can display complex & dynamic information.  
+[Templating](https://www.home-assistant.io/docs/configuration/templating/) can display complex & dynamic information.  
 Use them to create conditional messages, going far beyond what **state** offers.  
 
 ```lua
